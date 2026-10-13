@@ -1,0 +1,36 @@
+{
+  "metrics": {
+    "groundedness": 1.0,
+    "tool_accuracy": 1.0,
+    "correctness": 1.0,
+    "pass_rate": 1.0,
+    "p95_latency_ms": 0.068,
+    "avg_tokens": 33.2
+  },
+  "case_pass": {
+    "ship-standard": true,
+    "ship-express": true,
+    "ship-free": true,
+    "ship-canada": true,
+    "refund-time": true,
+    "refund-digital": true,
+    "refund-window": true,
+    "refund-large": true,
+    "acct-password": true,
+    "acct-2fa": true,
+    "acct-delete": true,
+    "acct-hours": true,
+    "ret-start": true,
+    "ret-defective": true,
+    "ret-mind": true,
+    "ret-packaging": true,
+    "order-shipped": true,
+    "order-processing": true,
+    "order-delivered": true,
+    "order-missing": true,
+    "refund-agent": true,
+    "refund-customer-denied": true,
+    "oos-capital": true,
+    "oos-pizza": true
+  }
+}

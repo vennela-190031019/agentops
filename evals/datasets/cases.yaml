@@ -1,0 +1,27 @@
+# Eval cases. Fields:
+#   id, question, role (default customer), expected_tools, expected_contains
+# Grow this to 30+ cases as the agent grows.
+- {id: ship-standard, question: "How long does standard shipping take?", expected_tools: [], expected_contains: ["5 to 7"]}
+- {id: ship-express, question: "How much is express shipping?", expected_tools: [], expected_contains: ["$15"]}
+- {id: ship-free, question: "Is shipping free?", expected_tools: [], expected_contains: ["over $50"]}
+- {id: ship-canada, question: "Do you ship to Canada?", expected_tools: [], expected_contains: ["Canada"]}
+- {id: refund-time, question: "How long do refunds take?", expected_tools: [], expected_contains: ["5 business days"]}
+- {id: refund-digital, question: "Can I get a refund on a digital download?", expected_tools: [], expected_contains: ["non-refundable"]}
+- {id: refund-window, question: "What is the refund window?", expected_tools: [], expected_contains: ["30 days"]}
+- {id: refund-large, question: "Do large refunds need approval?", expected_tools: [], expected_contains: ["manager approval"]}
+- {id: acct-password, question: "How do I reset my password?", expected_tools: [], expected_contains: ["Forgot Password"]}
+- {id: acct-2fa, question: "How do I turn on two-factor authentication?", expected_tools: [], expected_contains: ["Account Settings"]}
+- {id: acct-delete, question: "How do I delete my account?", expected_tools: [], expected_contains: ["14 days"]}
+- {id: acct-hours, question: "What are your support hours?", expected_tools: [], expected_contains: ["9am to 6pm"]}
+- {id: ret-start, question: "How do I start a return?", expected_tools: [], expected_contains: ["Return Item"]}
+- {id: ret-defective, question: "Who pays return shipping for defective items?", expected_tools: [], expected_contains: ["free for defective"]}
+- {id: ret-mind, question: "Do I pay for return shipping if I changed my mind?", expected_tools: [], expected_contains: ["pay return shipping"]}
+- {id: ret-packaging, question: "What condition must returned items be in?", expected_tools: [], expected_contains: ["original packaging"]}
+- {id: order-shipped, question: "Where is order ORD-1001?", expected_tools: [lookup_order], expected_contains: ["shipped", "UPS"]}
+- {id: order-processing, question: "What's the status of ORD-1002?", expected_tools: [lookup_order], expected_contains: ["processing"]}
+- {id: order-delivered, question: "Track ORD-1003 please", expected_tools: [lookup_order], expected_contains: ["delivered"]}
+- {id: order-missing, question: "Where is order ORD-9999?", expected_tools: [lookup_order], expected_contains: ["couldn't find"]}
+- {id: refund-agent, question: "Please refund order ORD-1003", role: support_agent, expected_tools: [issue_refund], expected_contains: ["pending", "approval"]}
+- {id: refund-customer-denied, question: "Please refund order ORD-1003", role: customer, expected_tools: [issue_refund], expected_contains: ["not permitted"]}
+- {id: oos-capital, question: "What is the capital of France?", expected_tools: [], expected_contains: ["don't have information"]}
+- {id: oos-pizza, question: "Can you recommend a good pizza place?", expected_tools: [], expected_contains: ["don't have information"]}
