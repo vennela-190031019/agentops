@@ -25,6 +25,8 @@ STATUS_VOCAB = {
     "denied": "you not permitted to use",
     "pending_approval": "pending human approval",
     "not_found": "couldn't find not found",
+    "rejected": "was rejected processed",
+    "refunded": "has been issued",
 }
 
 

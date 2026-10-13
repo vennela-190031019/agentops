@@ -21,6 +21,10 @@ def run():
     rows = []
     for c in cases:
         out = run_agent(c["question"], role=c.get("role", "customer"))
+        if out.get("status") == "pending_approval" and c.get("approval_decision"):
+            # Two-step case: a human reviewer resumes the paused run.
+            decision = {"approved": c["approval_decision"] == "approve", "reviewer": "eval-bot"}
+            out = run_agent(run_id=out["run_id"], decision=decision)
         used = [r["tool"] for r in out.get("tool_results", [])]
         blocked = out.get("blocked", False)
 

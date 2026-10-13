@@ -28,11 +28,24 @@ def test_tracer_records_latency_tokens_and_errors():
     assert sm["spans"] == 2 and sm["tokens"] == 10 and sm["errors"] == 1
 
 
-def test_risky_tool_requires_approval():
+def test_risky_tool_pauses_then_runs_on_approval():
     out = run_agent("Please refund order ORD-1003", role="support_agent")
+    assert out["status"] == "pending_approval"
     assert out["tool_results"][0]["status"] == "pending_approval"
-    out = run_agent("Please refund order ORD-1003", role="support_agent", approved=True)
+    out = run_agent(run_id=out["run_id"], decision={"approved": True, "reviewer": "alice"})
+    assert out["status"] == "ok"
     assert out["tool_results"][0]["status"] == "ran"
+    assert out["tool_results"][0]["reviewer"] == "alice"
+    assert "issued" in out["answer"]
+
+
+def test_risky_tool_rejected_never_runs():
+    out = run_agent("Please refund order ORD-1003", role="support_agent")
+    run_id = out["run_id"]
+    out = run_agent(run_id=run_id, decision={"approved": False, "reviewer": "bob"})
+    assert out["tool_results"][0]["status"] == "rejected"
+    assert out["tool_results"][0]["output"] == {}
+    assert "rejected" in out["answer"]
 
 
 def test_customer_cannot_refund():

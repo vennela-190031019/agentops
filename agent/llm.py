@@ -39,6 +39,8 @@ class MockLLM:
                     parts.append(f"You are not permitted to use {r['tool']}.")
                 elif r["status"] == "pending_approval":
                     parts.append(f"The refund for order {oid} is pending human approval.")
+                elif r["status"] == "rejected":
+                    parts.append(f"The refund for order {oid} was rejected; it was not processed.")
                 elif out.get("status") == "not_found":
                     parts.append(f"I couldn't find order {oid}.")
                 elif out.get("status") == "ok":
