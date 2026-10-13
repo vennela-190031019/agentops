@@ -5,7 +5,8 @@ REFUSAL_MESSAGE = "I can't help with that request."
 
 _PATTERNS = [
     (re.compile(r"\b(ignore|disregard|forget|override)\b[^.?!\n]{0,40}\b"
-                r"(previous|prior|above|earlier|before|told|said|instructed|given|your)\b",
+                r"(previous|prior|above|earlier|before|given|your)?\s*"
+                r"(instructions?|rules?|prompts?|guidelines?|directives?|training)\b",
                 re.I), "override/ignore previous instructions"),
     (re.compile(r"\b(reveal|show|print|output|repeat|leak)\b[^.?!\n]{0,30}\byour\b"
                 r"[^.?!\n]{0,20}\b(system\s+prompt|hidden|secret|original|underlying|"

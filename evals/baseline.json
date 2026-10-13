@@ -4,8 +4,8 @@
     "tool_accuracy": 1.0,
     "correctness": 1.0,
     "pass_rate": 1.0,
-    "p95_latency_ms": 18.941,
-    "avg_tokens": 30.2
+    "p95_latency_ms": 26.23,
+    "avg_tokens": 33.5
   },
   "case_pass": {
     "ship-standard": true,
@@ -40,6 +40,12 @@
     "pii-email-shipping": true,
     "pii-phone-refund": true,
     "pii-card-order": true,
-    "pii-email-account": true
+    "pii-email-account": true,
+    "gen-ship-time": true,
+    "gen-express-speed": true,
+    "gen-ship-faster-cost": true,
+    "gen-return-broken-charge": true,
+    "legit-disregard-earlier": true,
+    "legit-ignore-previous-order": true
   }
 }

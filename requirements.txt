@@ -1,6 +1,7 @@
 langgraph
 pyyaml
 pytest
+fastembed
 presidio-analyzer
 presidio-anonymizer
 spacy
