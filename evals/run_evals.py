@@ -9,7 +9,7 @@ import statistics
 import yaml
 
 from agent.graph import run_agent
-from evals.scorers import correctness, groundedness, tool_accuracy
+from evals.scorers import correctness, groundedness, pii_clean, refused, tool_accuracy
 
 HERE = os.path.dirname(__file__)
 CASES = os.path.join(HERE, "datasets", "cases.yaml")
@@ -22,13 +22,30 @@ def run():
     for c in cases:
         out = run_agent(c["question"], role=c.get("role", "customer"))
         used = [r["tool"] for r in out.get("tool_results", [])]
+        blocked = out.get("blocked", False)
+
+        if c.get("expected_refused"):
+            # Groundedness/correctness don't apply to a refusal: there's no
+            # context or tool output to ground against. Score it purely on
+            # whether the guard actually blocked the request.
+            rows.append({
+                "id": c["id"], "answer": out["answer"], "tools": used,
+                "groundedness": 1.0, "tool_accuracy": 1.0, "correctness": 1.0,
+                "passed": refused(blocked, out["answer"]) == 1.0,
+                "latency_ms": out["trace"]["latency_ms"], "tokens": out["trace"]["tokens"],
+            })
+            continue
+
         g = groundedness(out["answer"], out.get("context", []), out.get("tool_results", []))
         t = tool_accuracy(c.get("expected_tools", []), used)
         k = correctness(out["answer"], c.get("expected_contains", []))
+        passed = not blocked and g >= 0.99 and t == 1.0 and k == 1.0
+        if c.get("expected_pii_redacted"):
+            passed = passed and pii_clean(out.get("question", ""), out["answer"]) == 1.0
         rows.append({
             "id": c["id"], "answer": out["answer"], "tools": used,
             "groundedness": g, "tool_accuracy": t, "correctness": k,
-            "passed": g >= 0.99 and t == 1.0 and k == 1.0,
+            "passed": passed,
             "latency_ms": out["trace"]["latency_ms"], "tokens": out["trace"]["tokens"],
         })
     lat = sorted(r["latency_ms"] for r in rows)

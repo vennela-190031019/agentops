@@ -1,7 +1,9 @@
-"""LangGraph support agent: retrieve -> plan -> act -> answer.
+"""LangGraph support agent: guard -> retrieve -> plan -> act -> answer.
 
-`act` enforces RBAC and holds risky tools for human approval.
-Every node is traced (latency, tokens, errors).
+`guard` runs first: it refuses prompt-injection attempts outright and
+redacts PII (emails, phone numbers, credit cards) out of the question before
+any other node sees it. `act` enforces RBAC and holds risky tools for human
+approval. Every node is traced (latency, tokens, errors).
 """
 import os
 from typing import Any, TypedDict
@@ -11,6 +13,8 @@ from langgraph.graph import END, START, StateGraph
 from agent.llm import get_llm
 from agent.rag import Retriever
 from agent.tools import RISKY, TOOLS
+from guardrails.injection import REFUSAL_MESSAGE, detect_injection
+from guardrails.pii import redact_pii
 from guardrails.rbac import is_allowed
 from tracing.tracer import tracer
 
@@ -19,6 +23,9 @@ class State(TypedDict, total=False):
     question: str
     role: str
     approved: bool
+    blocked: bool
+    block_reason: str
+    pii_redacted: list[str]
     context: list[str]
     plan: list[dict]
     tool_results: list[dict[str, Any]]
@@ -27,6 +34,23 @@ class State(TypedDict, total=False):
 
 _retriever = Retriever()
 _llm = get_llm()
+
+
+def guard(state: State):
+    with tracer.span("guard") as s:
+        question = state["question"]
+        flagged, reason = detect_injection(question)
+        s["attrs"]["injection_flagged"] = flagged
+        if flagged:
+            s["attrs"]["reason"] = reason
+            return {"blocked": True, "block_reason": reason, "answer": REFUSAL_MESSAGE}
+        redacted, found = redact_pii(question)
+        s["attrs"]["pii_entities"] = sorted(found)
+        return {"blocked": False, "question": redacted, "pii_redacted": sorted(found)}
+
+
+def _route_after_guard(state: State):
+    return "blocked" if state.get("blocked") else "retrieve"
 
 
 def retrieve(state: State):
@@ -67,11 +91,13 @@ def answer(state: State):
 
 def build_graph():
     g = StateGraph(State)
+    g.add_node("guard", guard)
     g.add_node("retrieve", retrieve)
     g.add_node("plan", plan)
     g.add_node("act", act)
     g.add_node("answer", answer)
-    g.add_edge(START, "retrieve")
+    g.add_edge(START, "guard")
+    g.add_conditional_edges("guard", _route_after_guard, {"blocked": END, "retrieve": "retrieve"})
     g.add_edge("retrieve", "plan")
     g.add_edge("plan", "act")
     g.add_edge("act", "answer")
