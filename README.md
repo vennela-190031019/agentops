@@ -2,9 +2,9 @@
 
 A small support agent (LangGraph) with the "Ops" layer production teams need: **evals that fail CI on regressions, step-level tracing, and tool guardrails.**
 
-> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, and CI gate work. Still to build: MCP server, FastAPI + React dashboard, Docker, Terraform.
+> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, embedding retrieval, an MCP server, and CI gate work. Still to build: FastAPI + React dashboard, Docker, Terraform.
 
-## Eval results (clean baseline, 33 cases, deterministic mock LLM)
+## Eval results (clean baseline, 39 cases, deterministic mock LLM)
 
 | Metric | Score |
 |---|---|
@@ -24,6 +24,7 @@ question -> guard (injection refusal + PII redaction) -> retrieve (RAG) -> plan 
 
 - `agent/` LangGraph graph, retriever, tools, LLM adapters
 - `guardrails/` role-based tool access, prompt-injection detection, PII redaction
+- `mcp_server/` MCP server exposing read-only tools (`search_docs`, `lookup_order`) to MCP clients like Claude Desktop
 - `tracing/` span tracer (OpenTelemetry-shaped, JSONL export)
 - `evals/` dataset, scorers, runner, regression gate (`compare.py`)
 - `tests/` unit tests
@@ -40,10 +41,35 @@ python -m evals.compare --update # accept current scores as the new baseline
 
 CI (`.github/workflows/ci.yml`) runs the same on every push. LLM: a deterministic mock by default (free, reproducible); set `AGENTOPS_LLM=ollama` for a local model (adapter not yet tested).
 
+## MCP server
+
+`mcp_server/server.py` exposes two **read-only** tools over MCP: `search_docs(query)` (wraps the `Retriever`) and `lookup_order(order_id)` (wraps the order-lookup tool). `issue_refund` is deliberately not exposed here -- it's a risky tool and stays behind RBAC + human approval in the LangGraph agent, not reachable via MCP. Every tool argument is run through the same injection/PII guardrails as the agent: a flagged prompt-injection attempt raises a safe tool error (no traceback leaked), and PII is redacted before the argument reaches the retriever or order lookup.
+
+Run it standalone over stdio:
+
+```bash
+python -m mcp_server.server
+```
+
+To connect it to Claude Desktop, add this to `claude_desktop_config.json` (use an absolute path to your checkout and Python):
+
+```json
+{
+  "mcpServers": {
+    "agentops": {
+      "command": "/absolute/path/to/venv/bin/python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "/absolute/path/to/agentops"
+    }
+  }
+}
+```
+
 ## Known limits (honest)
 
 - Groundedness is a token-overlap heuristic, not an LLM judge.
-- Retriever is keyword + IDF; replace with embeddings.
+- Retriever uses fastembed/MiniLM embeddings with a keyword+IDF fallback (`agent/rag.py`); a small hybrid tie-break rule handles near-duplicate bullets that cosine similarity alone ranks wrong, and a similarity floor makes it abstain on off-topic questions instead of forcing in irrelevant context.
 - The mock LLM tests the pipeline (retrieval, tools, RBAC, approval), not language-model quality.
 - Prompt-injection detection (`guardrails/injection.py`) is regex/heuristic, not a classifier; it catches known phrasings, not every jailbreak.
 - PII redaction (`guardrails/pii.py`) covers emails, phone numbers and credit cards via Presidio pinned to spaCy's small `en_core_web_sm` model (fast enough for CI, unlike the default `en_core_web_lg`); it falls back to plain regex if presidio/spacy aren't installed. Other PII types (names, addresses, SSNs) aren't covered yet.
+- The MCP server reuses the same regex/heuristic guardrails as the agent, so it inherits the same blind spots; it has no RBAC/role concept of its own, which is why the risky `issue_refund` tool is simply never exposed rather than gated per-role.

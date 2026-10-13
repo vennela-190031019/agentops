@@ -1,6 +1,7 @@
 langgraph
 pyyaml
 pytest
+mcp<2  # mcp 2.x renamed FastMCP to MCPServer; pin <2 to keep using FastMCP
 fastembed
 presidio-analyzer
 presidio-anonymizer
