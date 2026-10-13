@@ -6,6 +6,8 @@ fastapi
 uvicorn[standard]
 prometheus-client
 httpx  # used by fastapi.testclient.TestClient
+langgraph-checkpoint-sqlite==3.0.1  # pinned: 3.0.2+ needs langgraph-checkpoint>=4, which conflicts with langgraph 1.x
+langgraph-checkpoint<4.0.0,>=3
 fastembed
 presidio-analyzer
 presidio-anonymizer

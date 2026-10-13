@@ -4,16 +4,18 @@
 redacts PII (emails, phone numbers, credit cards) out of the question before
 any other node sees it. `act` enforces RBAC and, for risky tools, pauses the
 graph with a real LangGraph interrupt until a human approves or rejects --
-there is no boolean flag, the graph genuinely stops running (checkpointed by
-`MemorySaver`) until `run_agent` is called again with a decision for the same
-run_id. Every node is traced (latency, tokens, errors).
+there is no boolean flag, the graph genuinely stops running (checkpointed to
+SQLite via `SqliteSaver`, so a pending approval survives a server restart)
+until `run_agent` is called again with a decision for the same run_id. Every
+node is traced (latency, tokens, errors).
 """
 import os
+import sqlite3
 import threading
 import uuid
 from typing import Any, TypedDict
 
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
@@ -111,6 +113,20 @@ def answer(state: State):
     return {"answer": text}
 
 
+CHECKPOINT_DB_PATH = os.environ.get(
+    "AGENTOPS_CHECKPOINT_DB", os.path.join(os.path.dirname(__file__), "..", "agentops_checkpoints.db")
+)
+
+
+def _build_checkpointer() -> SqliteSaver:
+    """Persist paused runs to SQLite (not MemorySaver) so a pending approval
+    survives a server restart: the same thread_id resumes from disk."""
+    conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
+    saver = SqliteSaver(conn)
+    saver.setup()
+    return saver
+
+
 def build_graph():
     g = StateGraph(State)
     g.add_node("guard", guard)
@@ -124,7 +140,7 @@ def build_graph():
     g.add_edge("plan", "act")
     g.add_edge("act", "answer")
     g.add_edge("answer", END)
-    return g.compile(checkpointer=MemorySaver())
+    return g.compile(checkpointer=_build_checkpointer())
 
 
 _graph = build_graph()
