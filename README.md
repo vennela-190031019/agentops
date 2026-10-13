@@ -43,6 +43,8 @@ CI (`.github/workflows/ci.yml`) runs the same on every push. LLM: a deterministi
 
 ## MCP server
 
+![Claude Code calling the AgentOps MCP server](assets/mcp-demo.png)
+
 `mcp_server/server.py` exposes two **read-only** tools over MCP: `search_docs(query)` (wraps the `Retriever`) and `lookup_order(order_id)` (wraps the order-lookup tool). `issue_refund` is deliberately not exposed here -- it's a risky tool and stays behind RBAC + human approval in the LangGraph agent, not reachable via MCP. Every tool argument is run through the same injection/PII guardrails as the agent: a flagged prompt-injection attempt raises a safe tool error (no traceback leaked), and PII is redacted before the argument reaches the retriever or order lookup.
 
 Run it standalone over stdio:
