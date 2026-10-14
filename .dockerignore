@@ -1,0 +1,17 @@
+**/__pycache__/
+**/*.pyc
+.venv/
+.git/
+.github/
+.pytest_cache/
+.cache/
+dashboard/
+infra/
+assets/
+tests/
+mcp_server/
+agentops.db*
+agentops_checkpoints.db*
+*.md
+.env
+.env.*

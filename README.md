@@ -2,7 +2,7 @@
 
 A small support agent (LangGraph) with the "Ops" layer production teams need: **evals that fail CI on regressions, step-level tracing, and tool guardrails.**
 
-> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, embedding retrieval, an MCP server, a FastAPI backend with real human-in-the-loop approval and API-key auth, a React dashboard, and CI gate work. Still to build: Docker, Terraform.
+> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, embedding retrieval, an MCP server, a FastAPI backend with real human-in-the-loop approval and API-key auth, a React dashboard, CI gate work, Docker images, a docker-compose observability stack, and Terraform for an ECS deployment (validated in CI, not deployed -- see "Infrastructure" below).
 
 ## Eval results (clean baseline, 39 cases, deterministic mock LLM)
 
@@ -32,6 +32,7 @@ question -> guard (injection refusal + PII redaction) -> retrieve (RAG) -> plan 
 - `tracing/` span tracer (OpenTelemetry-shaped, JSONL export)
 - `evals/` dataset, scorers, runner, regression gate (`compare.py`)
 - `tests/` unit tests
+- `infra/` prometheus/grafana provisioning for docker-compose, and `infra/terraform/` (ECS Fargate deployment, validated in CI, not deployed)
 
 ## Run
 
@@ -133,6 +134,35 @@ To connect it to Claude Desktop, add this to `claude_desktop_config.json` (use a
   }
 }
 ```
+
+## Docker / docker-compose
+
+```bash
+cp .env.example .env     # fill in AGENTOPS_API_KEYS, VITE_API_KEY, Grafana admin password
+docker compose up -d --build
+```
+
+This runs four services, all free/open-source images:
+
+| Service | URL | What |
+|---|---|---|
+| `api` | http://localhost:8000 | FastAPI backend (`Dockerfile`, non-root, fastembed model pre-downloaded at build time so the first request isn't a cold-start model fetch). |
+| `dashboard` | http://localhost:5173 | React dashboard, built and served as static files via nginx (`dashboard/Dockerfile`, multi-stage node build -> nginx). `VITE_API_URL`/`VITE_API_KEY` are baked into the JS bundle at build time from `.env`, same as the plain `npm run build` flow. |
+| `prometheus` | http://localhost:9090 | Scrapes the API's `/metrics` every 15s (`infra/prometheus/prometheus.yml`). |
+| `grafana` | http://localhost:3000 | Pre-provisioned with the Prometheus datasource and an "AgentOps" dashboard (`infra/grafana/`): request rate, error rate, p95 latency, tokens, pending approvals, guardrail blocks. Login from `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` in `.env` (defaults to `admin`/`admin` -- change it before exposing the stack beyond your own machine). |
+
+No secrets live in `docker-compose.yml` itself -- `AGENTOPS_API_KEYS`, `VITE_API_KEY`, and the Grafana password are all read from `.env` (gitignored; `.env.example` is the committed template). SQLite data (traces, pending approvals, the LangGraph checkpoint DB) lives on a named volume (`agentops-data` -> `/app/data` in the container) so approvals survive `docker compose down` / `up` (not `down -v`, which deletes volumes).
+
+```bash
+docker compose down        # stop, keep data
+docker compose down -v     # stop and wipe all volumes (SQLite data, Prometheus/Grafana state)
+```
+
+## Infrastructure (Terraform, validated only -- not deployed)
+
+`infra/terraform/` describes an ECS Fargate deployment of the API: an ECR repository, a CloudWatch log group, an ALB with a target group and HTTP listener, security groups scoping the tasks to ALB-only traffic, an IAM execution role (ECR pull + CloudWatch logs + reading `AGENTOPS_API_KEYS` from a SecureString SSM parameter) and task role, and an ECS Fargate service/task definition. All free-tier-eligible AWS resource types -- no cost is intentionally incurred, because **nothing here is ever applied**.
+
+**Honest status:** this Terraform has been run locally through `terraform fmt`, `terraform init -backend=false`, and `terraform validate` -- it's syntactically correct and internally consistent (verified against the `hashicorp/aws` provider schema). It has never been planned or applied against a real AWS account, there's no backend/state configured, and CI only runs `fmt -check` + `validate` (see the `terraform` job in `.github/workflows/ci.yml`) -- never `plan` or `apply`, and no AWS credentials are configured anywhere in this repo. Known gap if this were ever deployed for real: Fargate's task filesystem is ephemeral, so the SQLite-based trace/approval/checkpoint storage would not survive a task replacement the way the docker-compose named volume does locally -- EFS or a managed database would be needed first.
 
 ## Known limits (honest)
 

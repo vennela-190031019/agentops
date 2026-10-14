@@ -7,3 +7,9 @@ traces/*.jsonl
 .cache/
 agentops.db*
 agentops_checkpoints.db*
+.env
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfvars
+infra/terraform/.terraform.tfstate.lock.info
