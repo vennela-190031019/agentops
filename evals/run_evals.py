@@ -2,6 +2,7 @@
 
 Usage:  python -m evals.run_evals
 """
+import datetime
 import json
 import os
 import statistics
@@ -9,11 +10,13 @@ import statistics
 import yaml
 
 from agent.graph import run_agent
+from evals.compare import BASELINE, QUALITY, TOLERANCE
 from evals.scorers import correctness, groundedness, pii_clean, refused, tool_accuracy
 
 HERE = os.path.dirname(__file__)
 CASES = os.path.join(HERE, "datasets", "cases.yaml")
 OUT = os.path.join(HERE, "results.json")
+HISTORY = os.path.join(HERE, "history.json")
 
 
 def run():
@@ -63,7 +66,29 @@ def run():
     }
     result = {"metrics": metrics, "cases": rows}
     json.dump(result, open(OUT, "w"), indent=2)
+    _append_history(metrics)
     return result
+
+
+def _is_regression(metrics: dict) -> bool:
+    """Same definition evals/compare.py's gate uses, so the dashboard's
+    "regressed" flag can never disagree with what actually failed the build."""
+    if not os.path.exists(BASELINE):
+        return False
+    base = json.load(open(BASELINE))["metrics"]
+    return any(metrics[m] < base[m] - TOLERANCE for m in QUALITY)
+
+
+def _append_history(metrics: dict) -> None:
+    entry = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "pass_rate": metrics["pass_rate"],
+        "metrics": metrics,
+        "regressed": _is_regression(metrics),
+    }
+    history = json.load(open(HISTORY)) if os.path.exists(HISTORY) else []
+    history.append(entry)
+    json.dump(history, open(HISTORY, "w"), indent=2)
 
 
 def print_table(result):

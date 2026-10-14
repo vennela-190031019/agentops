@@ -5,5 +5,5 @@ __pycache__/
 evals/results.json
 traces/*.jsonl
 .cache/
-agentops.db
-agentops_checkpoints.db
+agentops.db*
+agentops_checkpoints.db*

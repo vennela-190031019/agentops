@@ -177,6 +177,16 @@ def test_traces_requires_auth_but_any_role_works(client):
     assert {"name", "latency_ms", "tokens", "error"} <= run["spans"][0].keys()
 
 
+def test_evals_history_requires_auth_and_returns_list(client):
+    assert client.get("/evals").status_code == 401
+    r = client.get("/evals", headers=auth("reviewer-key-alice"))
+    assert r.status_code == 200
+    history = r.json()["history"]
+    assert isinstance(history, list)
+    if history:
+        assert {"timestamp", "pass_rate", "metrics", "regressed"} <= history[0].keys()
+
+
 def test_metrics_exposes_prometheus_format(client):
     client.post("/chat", json={"question": "How long does standard shipping take?"}, headers=auth("cust-key"))
     r = client.get("/metrics")

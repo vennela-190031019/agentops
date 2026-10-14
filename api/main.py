@@ -5,6 +5,7 @@ POST /chat            run the agent; if it pauses on a risky tool, returns
 GET  /approvals        list runs currently paused awaiting a human decision.
 POST /approvals/{id}   resume a paused run with an approve/reject decision.
 GET  /traces           recent runs with their spans (latency, tokens, errors), from SQLite.
+GET  /evals             eval history (evals/history.json): one entry per run of `evals.run_evals`.
 GET  /health            liveness check -- open, no auth.
 GET  /metrics           Prometheus text exposition format -- open, no auth.
 
@@ -14,6 +15,9 @@ caller's role is derived from the key, never from the request body, and
 stored in SQLite (`api/store.py`), not an in-process dict, so they -- and the
 underlying LangGraph checkpoint -- survive a server restart.
 """
+import json
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -24,6 +28,8 @@ from agent.graph import run_agent
 from api import store
 from api.auth import Auth, ChatAuth, ReviewerAuth
 from api.metrics import ERROR_COUNT, GUARDRAIL_BLOCKS, PENDING_APPROVALS, REQUEST_COUNT, REQUEST_LATENCY, TOKEN_COUNTER
+
+EVAL_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "..", "evals", "history.json")
 
 app = FastAPI(title="AgentOps API")
 app.add_middleware(
@@ -105,6 +111,13 @@ def resolve_approval(run_id: str, body: ApprovalDecision, auth: ReviewerAuth):
 @app.get("/traces")
 def traces(auth: Auth, limit: int = 20):
     return {"runs": store.recent_runs(limit)}
+
+
+@app.get("/evals")
+def evals_history(auth: Auth):
+    if not os.path.exists(EVAL_HISTORY_PATH):
+        return {"history": []}
+    return {"history": json.load(open(EVAL_HISTORY_PATH))}
 
 
 @app.get("/metrics")

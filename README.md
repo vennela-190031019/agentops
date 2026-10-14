@@ -2,7 +2,7 @@
 
 A small support agent (LangGraph) with the "Ops" layer production teams need: **evals that fail CI on regressions, step-level tracing, and tool guardrails.**
 
-> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, embedding retrieval, an MCP server, a FastAPI backend with real human-in-the-loop approval, and CI gate work. Still to build: React dashboard, Docker, Terraform.
+> Status: week-1 scaffold. Agent, tracing, evals, RBAC, prompt-injection + PII guardrails, embedding retrieval, an MCP server, a FastAPI backend with real human-in-the-loop approval and API-key auth, a React dashboard, and CI gate work. Still to build: Docker, Terraform.
 
 ## Eval results (clean baseline, 39 cases, deterministic mock LLM)
 
@@ -76,6 +76,7 @@ Three roles:
 | `GET /approvals` | reviewer | List runs currently paused awaiting a human decision. |
 | `POST /approvals/{run_id}` | reviewer | `{decision: "approve"\|"reject"}` -> resumes the paused graph. Approve runs the tool; reject skips it and the answer says so. 404 if `run_id` isn't pending. |
 | `GET /traces` | any valid key | Recent runs (`?limit=`) with their spans: latency, tokens, errors, from SQLite. |
+| `GET /evals` | any valid key | Eval history from the committed `evals/history.json` -- one entry per run of `python -m evals.run_evals`. |
 
 ```bash
 curl -s localhost:8000/chat -d '{"question": "Please refund order ORD-1003"}' -H 'Content-Type: application/json' -H 'X-API-Key: agent-key'
@@ -86,6 +87,26 @@ curl -s localhost:8000/approvals/<run_id> -X POST -d '{"decision": "approve"}' -
 ```
 
 Pending approvals are stored in SQLite (`api/store.py`'s `pending_approvals` table), and the LangGraph checkpoint itself is also SQLite (see above) -- so a pending approval, and the ability to resume it, both survive a server restart. What does *not* survive a restart: in-flight Prometheus counters (process-local by design) and anything mid-request.
+
+## Dashboard (React + Vite)
+
+```bash
+cd dashboard
+npm ci
+cp .env.example .env.local   # then edit VITE_API_URL / VITE_API_KEY
+npm run dev                   # http://localhost:5173
+```
+
+`VITE_API_URL` and `VITE_API_KEY` are read at build/dev-server time from `.env.local` (gitignored -- never commit real keys). `.env.example` is committed and holds the dev-key fallback so a fresh checkout works against a backend with `AGENTOPS_API_KEYS` unset. **`VITE_API_KEY` should be a `reviewer`-role key**: the Approvals page needs `reviewer` to list/resolve approvals, and a `reviewer` key also has read access to `/traces` and `/evals`, so one key covers every page. A 401 (missing/invalid key) or 403 (wrong role) from the API renders as a clear inline message on the page, not a blank screen or a silent failure.
+
+Four tabs, each talking directly to the FastAPI backend (no separate dashboard backend/database):
+
+- **Traces** -- table of recent runs from `GET /traces`; click a row to see that run's spans as a proportional-width timeline (name, latency, tokens, error).
+- **Metrics** -- latency, token usage (+ an editable $/1K-token rate for an estimated cost figure, since the mock LLM is free and the real rate is a backend env var the API doesn't expose), span errors, and guardrail blocks, each charted over recent runs from `GET /traces` (Recharts). Prometheus's `/metrics` is a point-in-time snapshot, not a time series, so "over time" here is derived from the timestamped run history instead.
+- **Evals** -- table + line chart of `GET /evals` (eval history): pass rate, groundedness, tool accuracy, correctness per run, with any regressed run (same tolerance-vs-baseline definition `evals/compare.py`'s gate uses) highlighted red.
+- **Approvals** -- queue from `GET /approvals` with Approve/Reject buttons calling `POST /approvals/{run_id}`; resolved items show the agent's real answer, not just a status flip.
+
+`npm run lint` (oxlint) and `npm run build` (`tsc -b && vite build`) both run in CI (`.github/workflows/ci.yml`, `dashboard` job) via `npm ci`.
 
 ## MCP server
 
@@ -123,3 +144,4 @@ To connect it to Claude Desktop, add this to `claude_desktop_config.json` (use a
 - The MCP server reuses the same regex/heuristic guardrails as the agent, so it inherits the same blind spots; it has no RBAC/role concept of its own, which is why the risky `issue_refund` tool is simply never exposed rather than gated per-role.
 - API-key auth is a single static `key -> role` map in an env var, checked in plaintext against the header; it has no expiry, rotation, or per-key rate limiting, and the dev-key fallback is obviously not for production.
 - The reviewer "identity" recorded on an approval decision is just the raw API key string, not a separate human name/account; two reviewers must use two different keys to be distinguishable in a trace.
+- The dashboard's "cost" figure is tokens × a rate you type in, not a real bill; the backend's own `COST_PER_1K_TOKENS` (used in trace summaries) isn't exposed over the API. The Metrics page's charts only cover whatever's in the last `?limit=` runs from `/traces`, not true unbounded history.

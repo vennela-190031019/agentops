@@ -1,0 +1,80 @@
+[
+  {
+    "timestamp": "2026-10-13T16:45:41.693536+00:00",
+    "pass_rate": 0.3902,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 0.3902,
+      "pass_rate": 0.3902,
+      "p95_latency_ms": 42.185,
+      "avg_tokens": 23.4
+    },
+    "regressed": true
+  },
+  {
+    "timestamp": "2026-10-13T16:45:44.301145+00:00",
+    "pass_rate": 1.0,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 1.0,
+      "pass_rate": 1.0,
+      "p95_latency_ms": 23.584,
+      "avg_tokens": 32.8
+    },
+    "regressed": false
+  },
+  {
+    "timestamp": "2026-10-13T17:05:04.661242+00:00",
+    "pass_rate": 1.0,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 1.0,
+      "pass_rate": 1.0,
+      "p95_latency_ms": 20.82,
+      "avg_tokens": 32.8
+    },
+    "regressed": false
+  },
+  {
+    "timestamp": "2026-10-13T17:16:18.625697+00:00",
+    "pass_rate": 1.0,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 1.0,
+      "pass_rate": 1.0,
+      "p95_latency_ms": 40.07,
+      "avg_tokens": 32.8
+    },
+    "regressed": false
+  },
+  {
+    "timestamp": "2026-10-13T17:17:13.831820+00:00",
+    "pass_rate": 0.3902,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 0.3902,
+      "pass_rate": 0.3902,
+      "p95_latency_ms": 32.041,
+      "avg_tokens": 23.4
+    },
+    "regressed": true
+  },
+  {
+    "timestamp": "2026-10-13T17:17:33.371638+00:00",
+    "pass_rate": 1.0,
+    "metrics": {
+      "groundedness": 1.0,
+      "tool_accuracy": 1.0,
+      "correctness": 1.0,
+      "pass_rate": 1.0,
+      "p95_latency_ms": 52.554,
+      "avg_tokens": 32.8
+    },
+    "regressed": false
+  }
+]
